@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Travel Planner — TravelNex</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar" style="display:none">
+  <div class="nav-logo"><i class="fas fa-plane"></i> TravelNex</div>
+  <div id="nav-right" class="nav-links">
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">U</div>
+      <span id="nav-username">User</span>
+    </div>
+    <button class="nav-btn nav-btn-ghost" onclick="goTo('history')"><i class="fas fa-history"></i> History</button>
+    <button class="nav-btn nav-btn-ghost" onclick="goTo('guide')"><i class="fas fa-compass"></i> Guide</button>
+    <button class="nav-btn nav-btn-ghost" id="admin-nav-btn" onclick="goTo('admin')" style="display:none"><i class="fas fa-cogs"></i> Admin</button>
+    <button class="nav-btn nav-btn-ghost" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+  </div>
+</nav>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading">
+  <div class="loader-ring"></div>
+  <p id="loading-text">Finding best packages for you...</p>
+  <div class="loading-steps" id="loading-steps">
+    <div class="loading-step" id="step1"><i class="fas fa-circle-notch fa-spin"></i> Connecting to database...</div>
+    <div class="loading-step" id="step2"><i class="fas fa-clock"></i> Fetching live attractions...</div>
+    <div class="loading-step" id="step3"><i class="fas fa-clock"></i> Running AI scoring...</div>
+    <div class="loading-step" id="step4"><i class="fas fa-clock"></i> Building itinerary...</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><i class="fas fa-check-circle"></i> <span id="toast-msg"></span></div>
+
+<!-- FLOATING ROBO GUIDE -->
+<div class="guide-robo-launcher" id="guide-robo-launcher" style="display:none">
+  <button class="guide-pet-card" id="guide-pet" type="button" onclick="openGuideRoboChat()">
+    <div class="guide-pet-avatar">
+      <div class="guide-pet-antenna"></div>
+      <div class="guide-pet-head">
+        <div class="guide-pet-eyes">
+          <span></span>
+          <span></span>
+        </div>
+        <div class="guide-pet-mouth"></div>
+      </div>
+      <div class="guide-pet-body">
+        <div class="guide-pet-core"></div>
+      </div>
+    </div>
+  </button>
+  <div class="guide-robo-bubble">
+    <div class="guide-pet-title" id="guide-pet-title">TravelNex Guide</div>
+    <p class="guide-pet-bubble" id="guide-pet-bubble">Trip help</p>
+  </div>
+</div>
+<div class="guide-robo-popup" id="guide-robo-popup" style="display:none">
+  <div class="guide-robo-popup-header">
+    <div class="guide-robo-popup-brand">
+      <div class="guide-robo-popup-bot">
+        <div class="guide-pet-antenna"></div>
+        <div class="guide-pet-head">
+          <div class="guide-pet-eyes">
+            <span></span>
+            <span></span>
+          </div>
+          <div class="guide-pet-mouth"></div>
+        </div>
+      </div>
+      <div>
+        <div class="guide-pet-kicker">TravelNex</div>
+        <div class="guide-pet-title">Travel Guide</div>
+      </div>
+    </div>
+    <button class="guide-robo-close" type="button" onclick="closeGuideRoboChat()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <div class="guide-chat-shell" id="guide-chat-shell">
+    <div class="guide-chat-suggestions">
+      <button class="guide-suggestion-chip" type="button" data-guide-suggestion="best-time" onclick="sendGuideSuggestion('best-time')">Best time</button>
+      <button class="guide-suggestion-chip" type="button" data-guide-suggestion="must-visit" onclick="sendGuideSuggestion('must-visit')">Must visit spots</button>
+      <button class="guide-suggestion-chip" type="button" data-guide-suggestion="budget" onclick="sendGuideSuggestion('budget')">Budget</button>
+      <button class="guide-suggestion-chip" type="button" data-guide-suggestion="trip-plan" onclick="sendGuideSuggestion('trip-plan')">3 day trip</button>
+    </div>
+    <div id="guide-chat-messages" class="guide-chat-messages"></div>
+    <div class="guide-chat-input-row">
+      <input class="inp" id="guide-chat-input" placeholder="Ask about destinations, budgets, food, or itineraries..."
+        onkeydown="if(event.key==='Enter') sendGuideChat()">
+      <button class="btn-search-main" id="guide-chat-send" onclick="sendGuideChat()" style="width:auto;padding:13px 24px;white-space:nowrap">
+        <i class="fas fa-paper-plane"></i> Send
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!--          PAGE: LOGIN            -->
+<!-- ════════════════════════════════ -->
+<div class="guide-explore-modal" id="guide-explore-modal" style="display:none">
+  <div class="guide-explore-shell">
+    <div class="guide-explore-header">
+      <div>
+        <div class="guide-explore-kicker" id="guide-explore-kicker">TravelNex Guide</div>
+        <h3 id="guide-explore-title">Nearby Places</h3>
+        <p id="guide-explore-subtitle">Explore inside TravelNex</p>
+      </div>
+      <button class="guide-explore-close" type="button" onclick="closeGuideExplore()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div id="guide-explore-body" class="guide-explore-body"></div>
+  </div>
+</div>
+
+<div class="page active" id="page-landing">
+  <div class="landing-shell">
+    <div class="landing-topbar">
+      <div class="landing-brand"><i class="fas fa-plane"></i> TravelNex</div>
+      <div class="landing-top-actions">
+        <button class="landing-link-btn" type="button" onclick="goTo('login')">Login</button>
+        <button class="landing-primary-btn" type="button" onclick="goTo('signup')">Get Started</button>
+      </div>
+    </div>
+
+    <section class="landing-hero landing-hero-single">
+      <div class="landing-copy landing-copy-single">
+        <div class="landing-kicker"><i class="fas fa-sparkles"></i> Minimal AI travel planning</div>
+        <h1>Plan your next trip on one clean screen.</h1>
+        <p>Choose your destination, set your budget, and get a simple plan with smarter recommendations.</p>
+
+        <div class="landing-actions landing-actions-center">
+          <button class="landing-primary-btn landing-hero-btn" type="button" onclick="goTo('login')">
+            <i class="fas fa-sign-in-alt"></i> Start Planning
+          </button>
+          <button class="landing-secondary-btn" type="button" onclick="goTo('signup')">
+            <i class="fas fa-user-plus"></i> Create Account
+          </button>
+        </div>
+
+        <div class="landing-highlights landing-highlights-center">
+          <div class="landing-pill">Smart recommendations</div>
+          <div class="landing-pill">Day-wise itinerary</div>
+          <div class="landing-pill">Budget-first planning</div>
+        </div>
+      </div>
+
+      <div class="landing-stage">
+        <div class="landing-stage-glow"></div>
+        <div class="landing-floating-card landing-floating-top">
+          <span>Weekend Pick</span>
+          <strong>Goa | Beaches | Sunset stays</strong>
+        </div>
+      <div class="landing-preview-card">
+        <div class="landing-preview-head">
+          <div>
+            <div class="landing-preview-kicker">Preview</div>
+            <h3>Your trip in a glance</h3>
+          </div>
+          <div class="landing-preview-badge">AI Ready</div>
+        </div>
+
+          <div class="landing-preview-route">
+            <div class="landing-route-dot"></div>
+            <div class="landing-route-copy">
+            <strong>Goa Escape</strong>
+            <span>3 days • Beach • 2 adults</span>
+          </div>
+        </div>
+
+        <div class="landing-stats">
+            <div class="landing-stat-card landing-budget-card">
+            <span>Budget</span>
+            <strong>₹20,000</strong>
+          </div>
+          <div class="landing-stat-card">
+            <span>Best For</span>
+            <strong>Friends Trip</strong>
+          </div>
+          <div class="landing-stat-card">
+            <span>Plan Style</span>
+            <strong>Minimal</strong>
+          </div>
+        </div>
+
+        <div class="landing-checklist">
+          <div><i class="fas fa-check-circle"></i> Personalized package suggestions</div>
+          <div><i class="fas fa-check-circle"></i> Cost split across hotel, food, travel</div>
+          <div><i class="fas fa-check-circle"></i> Simple itinerary ready after login</div>
+        </div>
+      </div>
+        <div class="landing-floating-card landing-floating-bottom">
+          <span>Budget Friendly</span>
+          <strong>Hotels, food, travel, and activity split</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-value-grid">
+      <div class="landing-value-card">
+        <div class="landing-value-icon"><i class="fas fa-compass"></i></div>
+        <span>Smart Match</span>
+        <h3>Trips that fit your style</h3>
+        <p>Get cleaner recommendations without browsing endless package lists.</p>
+      </div>
+      <div class="landing-value-card">
+        <div class="landing-value-icon"><i class="fas fa-wallet"></i></div>
+        <span>Budget Clarity</span>
+        <h3>Spend with more confidence</h3>
+        <p>Keep destination, budget, and travel type aligned in one flow.</p>
+      </div>
+      <div class="landing-value-card">
+        <div class="landing-value-icon"><i class="fas fa-map"></i></div>
+        <span>Simple Output</span>
+        <h3>Easy itinerary, less clutter</h3>
+        <p>Follow a day-wise trip plan that feels organized and ready to use.</p>
+      </div>
+    </section>
+
+    <section class="landing-steps">
+      <div class="landing-step-card">
+        <div class="landing-step-no">01</div>
+        <h3>Set your trip</h3>
+        <p>Pick destination, dates, budget, and travelers in one simple form.</p>
+      </div>
+      <div class="landing-step-card">
+        <div class="landing-step-no">02</div>
+        <h3>Get smart matches</h3>
+        <p>See recommendations that align with your travel style and spend range.</p>
+      </div>
+      <div class="landing-step-card">
+        <div class="landing-step-no">03</div>
+        <h3>Follow the itinerary</h3>
+        <p>Use a clean day-wise plan without needing extra planning tools.</p>
+      </div>
+    </section>
+
+    <section class="landing-feature-grid">
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon"><i class="fas fa-compass"></i></div>
+        <h3>Better destination fit</h3>
+        <p>Find trips that feel right for your travel type instead of browsing random packages.</p>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon"><i class="fas fa-wallet"></i></div>
+        <h3>Clearer budget view</h3>
+        <p>Understand your plan through cost-aware suggestions and simpler spending decisions.</p>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon"><i class="fas fa-map"></i></div>
+        <h3>Cleaner output</h3>
+        <p>Get a trip plan that feels organized, minimal, and actually ready to use.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="page" id="page-login">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative;z-index:1;">
+    <div class="login-card">
+      <div class="login-icon"><i class="fas fa-plane-departure"></i></div>
+      <h2>Welcome Back</h2>
+      <p>Login to plan your perfect trip</p>
+      <div class="input-group">
+        <label><i class="fas fa-user"></i> Username</label>
+        <input class="inp" id="login-user" placeholder="admin or harshil" value="harshil">
+      </div>
+      <div class="input-group">
+        <label><i class="fas fa-lock"></i> Password</label>
+        <input class="inp" type="password" id="login-pass" placeholder="Enter password">
+      </div>
+      <button class="btn-primary-full" onclick="doLogin()">
+        <i class="fas fa-sign-in-alt"></i> Login
+      </button>
+      <div class="switch-link">New user? <a onclick="goTo('signup')">Sign Up Here</a></div>
+      <div class="switch-link" style="margin-top:10px"><a onclick="goTo('landing')">Back to Home</a></div>
+      <div style="margin-top:16px;padding:12px;background:rgba(0,194,255,0.06);border-radius:10px;font-size:0.78rem;color:var(--text);">
+        <i class="fas fa-info-circle" style="color:var(--sky)"></i>
+        Demo: <b style="color:var(--white)">harshil / 1234</b> &nbsp;|&nbsp; Admin: <b style="color:var(--white)">admin / 1234</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!--          PAGE: SIGNUP           -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-signup">
+  <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative;z-index:1;">
+    <div class="login-card">
+      <div class="login-icon" style="background:linear-gradient(135deg,var(--teal),var(--sky))"><i class="fas fa-user-plus"></i></div>
+      <h2>Create Account</h2>
+      <p>Join TravelNex — plan smarter trips</p>
+      <div class="input-group">
+        <label><i class="fas fa-user"></i> Username</label>
+        <input class="inp" id="signup-user" placeholder="Choose a username">
+      </div>
+      <div class="input-group">
+        <label><i class="fas fa-lock"></i> Password</label>
+        <input class="inp" type="password" id="signup-pass" placeholder="Choose a password">
+      </div>
+      <button class="btn-primary-full" onclick="doSignup()" style="background:linear-gradient(135deg,#00897b,var(--teal))">
+        <i class="fas fa-user-plus"></i> Sign Up
+      </button>
+      <div class="switch-link">Already have an account? <a onclick="goTo('login')">Login Here</a></div>
+      <div class="switch-link" style="margin-top:10px"><a onclick="goTo('landing')">Back to Home</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!--          PAGE: HOME             -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-home">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag"><i class="fas fa-robot"></i> AI-POWERED TRAVEL PLANNING</div>
+    <h1>Plan Your Dream Trip<br>with <span>Smart AI</span></h1>
+    <p>Enter your preferences and get personalized packages + a complete day-by-day itinerary</p>
+  </div>
+
+  <!-- SEARCH FORM -->
+  <div class="search-wrap">
+    <div class="search-card" style="max-width:960px;margin:0 auto">
+      <h3><i class="fas fa-sliders-h"></i> Your Travel Preferences</h3>
+
+      <!-- ROW 1: Trip Type Selector (Honeymoon / Family / Friends / Solo) -->
+      <div style="margin-bottom:18px">
+        <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">
+          <i class="fas fa-users" style="color:var(--sky)"></i> Who's Travelling?
+        </label>
+        <div class="trip-type-row" id="trip-type-row">
+          <button class="trip-type-btn" id="tt-honeymoon" onclick="selectTripType('Honeymoon',this)">
+            <span class="tt-icon">💑</span><span class="tt-label">Honeymoon</span><span class="tt-sub">2 People</span>
+          </button>
+          <button class="trip-type-btn" id="tt-family" onclick="selectTripType('Family',this)">
+            <span class="tt-icon">👨‍👩‍👧‍👦</span><span class="tt-label">Family</span><span class="tt-sub">3+ People</span>
+          </button>
+          <button class="trip-type-btn active" id="tt-friends" onclick="selectTripType('Friends',this)">
+            <span class="tt-icon">👫</span><span class="tt-label">Friends</span><span class="tt-sub">2+ People</span>
+          </button>
+          <button class="trip-type-btn" id="tt-solo" onclick="selectTripType('Solo',this)">
+            <span class="tt-icon">🧳</span><span class="tt-label">Solo</span><span class="tt-sub">1 Person</span>
+          </button>
+        </div>
+        <input type="hidden" id="trip-type" value="Friends">
+      </div>
+
+      <!-- ROW 2: From, Destination, Date, Adults -->
+      <div class="form-row" style="grid-template-columns:repeat(3,1fr)">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-map-marker-alt" style="color:var(--sky)"></i> Destination
+          </label>
+          <input class="inp" id="dest" placeholder="Goa, Manali..." value="Goa">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-calendar-alt" style="color:var(--sky)"></i> Travel Date
+          </label>
+          <input class="inp" id="travel-date" type="date">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-user-friends" style="color:var(--sky)"></i> Adults
+          </label>
+          <select class="inp" id="adults" onchange="syncAdultsToTripType()">
+            <option value="1">1 Adult</option>
+            <option value="2" selected>2 Adults</option>
+            <option value="3">3 Adults</option>
+            <option value="4">4 Adults</option>
+            <option value="5">5 Adults</option>
+            <option value="6">6 Adults</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ROW 3: Budget, Days, Travel Type -->
+      <div class="form-row" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-rupee-sign" style="color:var(--sky)"></i> Budget (₹ per person)
+          </label>
+          <input class="inp" id="budget" type="number" placeholder="20000" value="20000">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-moon" style="color:var(--sky)"></i> Days
+          </label>
+          <input class="inp" id="days" type="number" placeholder="3" value="3">
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">
+            <i class="fas fa-tag" style="color:var(--sky)"></i> Travel Type
+          </label>
+          <select class="inp" id="ttype">
+            <option>Beach</option>
+            <option>Hill Station</option>
+            <option>Adventure</option>
+            <option>City Tour</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-search-main" onclick="doSearch()">
+        <i class="fas fa-magic"></i> Get AI Recommendations + Trip Plan
+      </button>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-wrap" id="results-section" style="display:none; max-width:960px; margin:0 auto;">
+    <div class="results-header">
+      <h2 id="results-title">Recommendations for <span style="color:var(--sky)">Goa</span></h2>
+      <p id="results-sub">AI found 5 matching packages • Day-by-day itinerary ready</p>
+    </div>
+
+    <!-- TABS -->
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('itinerary',this)">
+        <i class="fas fa-map"></i> Trip Itinerary
+      </button>
+      <button class="tab-btn" onclick="switchTab('packages',this)">
+        <i class="fas fa-box-open"></i> Package Recommendations
+      </button>
+    </div>
+
+    <!-- TAB: ITINERARY -->
+    <div class="tab-content active" id="tab-itinerary">
+      <div class="itinerary-wrap">
+        <div class="budget-card">
+          <div class="budget-icon"><i class="fas fa-wallet"></i></div>
+          <div class="budget-info">
+            <h4>Estimated Total Cost</h4>
+            <div class="amount" id="total-cost">₹15,000</div>
+            <div class="saved" id="saved-amount">✅ You save ₹5,000 from your budget</div>
+          </div>
+          <div class="budget-breakdown">
+            <div class="budget-item"><div class="bval" id="b-hotel">₹7,500</div><div class="blbl">Hotels</div></div>
+            <div class="budget-item"><div class="bval" id="b-food">₹3,000</div><div class="blbl">Food</div></div>
+            <div class="budget-item"><div class="bval" id="b-travel">₹2,500</div><div class="blbl">Travel</div></div>
+            <div class="budget-item"><div class="bval" id="b-act">₹2,000</div><div class="blbl">Activities</div></div>
+          </div>
+        </div>
+        <!-- Weather Card — populated by JS from OpenWeatherMap live data -->
+        <div id="weather-card" style="
+          display:none;
+          align-items:center;
+          gap:14px;
+          background:rgba(100,210,255,0.07);
+          border:1px solid rgba(100,210,255,0.18);
+          border-radius:14px;
+          padding:16px 20px;
+          margin-bottom:18px;
+        "></div>
+        <div id="itinerary-days"></div>
+      </div>
+    </div>
+
+    <!-- TAB: PACKAGES -->
+    <div class="tab-content" id="tab-packages">
+      <div class="pkg-grid" id="pkg-grid"></div>
+    </div>
+
+  </div>
+
+  <footer class="footer">© 2026 AI Travel Planner &nbsp;|&nbsp; MCA Project &nbsp;|&nbsp; Flask + MySQL + OpenTripMap API</footer>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!--        PAGE: HISTORY            -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-history">
+  <div class="page-wrap">
+    <h2 class="page-title"><i class="fas fa-history"></i> Search History</h2>
+    <p class="page-subtitle">Your past travel searches</p>
+    <table class="history-table" id="history-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Destination</th><th>Budget</th><th>Days</th><th>Type</th><th>Time</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="history-body"></tbody>
+    </table>
+    <div class="empty-state" id="history-empty" style="display:none">
+      <i class="fas fa-search"></i>
+      <p>No searches yet. <a style="color:var(--sky);cursor:pointer" onclick="goTo('home')">Search for packages</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════ -->
+<!--         PAGE: ADMIN             -->
+<!-- ════════════════════════════════ -->
+<div class="page" id="page-admin">
+  <div class="page-wrap">
+    <h2 class="page-title"><i class="fas fa-cogs"></i> Admin Panel</h2>
+    <p class="page-subtitle">Manage travel packages</p>
+    <div class="admin-grid">
+      <div class="admin-form-card">
+        <h3 id="admin-form-title"><i class="fas fa-plus-circle"></i> Add Package</h3>
+        <p id="admin-form-subtitle" class="admin-form-subtitle">Create a new package for recommendations.</p>
+        <div class="input-group"><label>Provider</label><input class="inp" id="a-provider" placeholder="e.g. MakeMyTrip"></div>
+        <div class="input-group"><label>Destination</label><input class="inp" id="a-dest" placeholder="e.g. Goa"></div>
+        <div class="input-group"><label>Price (₹)</label><input class="inp" type="number" id="a-price" placeholder="15000"></div>
+        <div class="input-group"><label>Days</label><input class="inp" type="number" id="a-days" placeholder="3"></div>
+        <div class="input-group">
+          <label>Travel Type</label>
+          <select class="inp" id="a-type">
+            <option>Beach</option><option>Hill Station</option><option>Adventure</option><option>City Tour</option>
+            <option>Nature</option><option>Cultural</option><option>Luxury</option>
+          </select>
+        </div>
+        <div class="input-group"><label>Rating (0-5)</label><input class="inp" type="number" step="0.1" id="a-rating" placeholder="4.5"></div>
+        <div class="input-group"><label>Booking URL (Affiliate Link)</label><input class="inp" id="a-url" placeholder="https://..."></div>
+        <div class="admin-form-actions">
+          <button class="btn-primary-full" id="admin-save-btn" onclick="savePackage()" style="margin-top:8px">
+            <i class="fas fa-plus"></i> Add Package
+          </button>
+          <button class="btn-secondary-full" id="admin-cancel-btn" onclick="resetAdminForm()" style="display:none" type="button">
+            <i class="fas fa-times"></i> Cancel Edit
+          </button>
+        </div>
+      </div>
+      <div class="admin-list-card">
+        <h3><i class="fas fa-list"></i> All Packages (<span id="pkg-count">0</span>)</h3>
+        <div style="overflow-x:auto">
+          <table class="admin-table">
+            <thead><tr><th>Provider</th><th>Destination</th><th>Price</th><th>Days</th><th>Type</th><th>⭐</th><th></th></tr></thead>
+            <tbody id="admin-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.trip-type-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.trip-type-btn {
+  flex: 1;
+  min-width: 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text);
+}
+.trip-type-btn:hover {
+  border-color: var(--sky);
+  background: rgba(0,194,255,0.08);
+}
+.trip-type-btn.active {
+  border-color: var(--sky);
+  background: rgba(0,194,255,0.15);
+  color: var(--white);
+  box-shadow: 0 0 16px rgba(0,194,255,0.2);
+}
+.tt-icon { font-size: 1.6rem; line-height: 1; }
+.tt-label { font-size: 0.9rem; font-weight: 600; color: var(--white); }
+.tt-sub { font-size: 0.72rem; color: var(--text); }
+.trip-type-btn.active .tt-sub { color: rgba(255,255,255,0.7); }
+
+/* "No packages found" fallback card */
+.no-pkg-card {
+  grid-column: 1 / -1;
+  background: rgba(255,255,255,0.03);
+  border: 2px dashed rgba(0,194,255,0.3);
+  border-radius: 16px;
+  padding: 36px 24px;
+  text-align: center;
+  color: var(--text);
+}
+.no-pkg-card h3 { color: var(--white); margin-bottom: 10px; font-size: 1.1rem; }
+.no-pkg-card p  { font-size: 0.88rem; margin-bottom: 20px; }
+.no-pkg-links   { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.no-pkg-link    {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 10px; font-size: 0.85rem;
+  font-weight: 600; text-decoration: none; transition: opacity 0.2s;
+  color: #fff;
+}
+.no-pkg-link:hover { opacity: 0.85; }
+.no-pkg-link.makemytrip { background: linear-gradient(135deg,#e91e8c,#f44336); }
+.no-pkg-link.yatra      { background: linear-gradient(135deg,#ff6d00,#ffa000); }
+.no-pkg-link.cleartrip  { background: linear-gradient(135deg,#0080ff,#00c6ff); }
+.no-pkg-link.goibibo    { background: linear-gradient(135deg,#e91e63,#9c27b0); }
+.no-pkg-link.easemytrip { background: linear-gradient(135deg,#00897b,#26a69a); }
+.no-pkg-link.thomascook { background: linear-gradient(135deg,#1a237e,#283593); }
+</style>
+<script src="script.js"></script>
+<script>
+(function initForm() {
+  // Default travel date = 14 days from today
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth()+1).padStart(2,'0');
+  const dd   = String(d.getDate()).padStart(2,'0');
+  const el   = document.getElementById('travel-date');
+  if (el) {
+    el.value = `${yyyy}-${mm}-${dd}`;
+    const today = new Date();
+    el.min = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  }
+})();
+</script>
+
+<!-- ════════════════════════════════════════ -->
+<!--            PAGE: GUIDE                  -->
+<!-- ════════════════════════════════════════ -->
+<div class="page" id="page-guide">
+  <div class="page-wrap" style="max-width:980px">
+    <div class="guide-topbar">
+      <div>
+        <h2 class="page-title"><i class="fas fa-compass"></i> Travel Guide</h2>
+    <p class="page-subtitle">Snap a place to identify it &nbsp;·&nbsp; Explore destination galleries &nbsp;·&nbsp; See itinerary photos</p>
+
+      </div>
+      <button class="guide-back-btn" onclick="goBackFromGuide()" type="button">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+    </div>
+
+    <!-- SNAP A PLACE -->
+    <div class="guide-card">
+      <div class="guide-card-header">
+        <div class="guide-icon-box" style="background:linear-gradient(135deg,var(--blue),var(--sky))"><i class="fas fa-camera"></i></div>
+        <div>
+          <h3>📸 Snap a Place</h3>
+          <p>Upload any photo of a landmark — AI identifies it and tells you everything about it</p>
+        </div>
+      </div>
+      <div class="snap-drop-zone" id="snap-zone"
+           onclick="document.getElementById('snap-file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleSnapDrop(event)">
+        <input type="file" id="snap-file" accept="image/*" style="display:none" onchange="handleSnapUpload(event)">
+        <div id="snap-placeholder">
+          <div style="font-size:3.5rem;margin-bottom:12px">📷</div>
+          <div style="font-size:1rem;font-weight:600;color:var(--white)">Click or drag a photo here</div>
+          <div style="font-size:0.82rem;color:var(--text);margin-top:4px">Any landmark, beach, hill, monument...</div>
+        </div>
+        <img id="snap-preview" style="display:none;max-width:100%;max-height:280px;border-radius:12px;object-fit:cover">
+      </div>
+      <button class="btn-search-main" id="snap-btn" onclick="identifyPlace()" style="display:none;margin-top:14px">
+        <i class="fas fa-magic"></i> Identify This Place
+      </button>
+      <div id="snap-loading" style="display:none;text-align:center;padding:24px;color:var(--text)">
+        <i class="fas fa-circle-notch fa-spin" style="color:var(--sky);font-size:1.5rem"></i>
+        <p style="margin-top:10px">AI is identifying the place...</p>
+      </div>
+      <div id="snap-result" style="display:none;margin-top:20px">
+        <div class="snap-result-card">
+          <div id="snap-result-inner"></div>
+          <button class="btn-primary-full" id="snap-plan-btn" onclick="planFromSnap()"
+            style="margin-top:16px;display:none;background:linear-gradient(135deg,var(--teal),var(--sky))">
+            <i class="fas fa-plane-departure"></i> Plan a Trip to This Place
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DESTINATION GALLERY -->
+    <div class="guide-card" style="margin-top:28px">
+      <div class="guide-card-header">
+        <div class="guide-icon-box" style="background:linear-gradient(135deg,var(--teal),#00b894)"><i class="fas fa-images"></i></div>
+        <div>
+          <h3>🖼️ Destination Gallery</h3>
+          <p>Explore photos of any destination with AI travel tips</p>
+        </div>
+      </div>
+      <div class="dest-chips" style="margin-bottom:16px">
+        <span class="dest-chip" onclick="quickGallery('Goa')">🏖️ Goa</span>
+        <span class="dest-chip" onclick="quickGallery('Manali')">🏔️ Manali</span>
+        <span class="dest-chip" onclick="quickGallery('Kerala')">🌴 Kerala</span>
+        <span class="dest-chip" onclick="quickGallery('Rajasthan')">🏰 Rajasthan</span>
+        <span class="dest-chip" onclick="quickGallery('Ladakh')">⛰️ Ladakh</span>
+        <span class="dest-chip" onclick="quickGallery('Andaman')">🌊 Andaman</span>
+        <span class="dest-chip" onclick="quickGallery('Shimla')">❄️ Shimla</span>
+        <span class="dest-chip" onclick="quickGallery('Rishikesh')">🧘 Rishikesh</span>
+        <span class="dest-chip" onclick="quickGallery('Ooty')">🌿 Ooty</span>
+        <span class="dest-chip" onclick="quickGallery('Varanasi')">🪔 Varanasi</span>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:20px">
+        <input class="inp" id="gallery-dest" placeholder="Type any destination... e.g. Goa, Bali, Paris"
+          style="flex:1" onkeydown="if(event.key==='Enter') loadGallery()">
+        <button class="btn-search-main" onclick="loadGallery()" style="width:auto;padding:13px 28px;white-space:nowrap">
+          <i class="fas fa-search"></i> Explore
+        </button>
+      </div>
+      <div id="gallery-loading" style="display:none;text-align:center;padding:24px;color:var(--text)">
+        <i class="fas fa-circle-notch fa-spin" style="color:var(--sky);font-size:1.5rem"></i>
+        <p style="margin-top:10px">Loading gallery...</p>
+      </div>
+      <div id="gallery-result" style="display:none">
+        <div id="gallery-ai-info" style="margin-bottom:20px"></div>
+        <div id="gallery-grid" class="gallery-grid"></div>
+        <button class="btn-primary-full" id="gallery-plan-btn" onclick="planFromGallery()"
+          style="margin-top:20px;display:none;background:linear-gradient(135deg,var(--blue),var(--sky))">
+          <i class="fas fa-plane-departure"></i> Plan a Trip Here
+        </button>
+      </div>
+    </div>
+
+    <!-- ITINERARY PLACE PHOTOS -->
+    <div class="guide-card" id="itinerary-photos-section" style="margin-top:28px;display:none">
+      <div class="guide-card-header">
+        <div class="guide-icon-box" style="background:linear-gradient(135deg,var(--gold),#ff9500)"><i class="fas fa-map-marked-alt"></i></div>
+        <div>
+          <h3>🗺️ Itinerary Place Photos</h3>
+          <p id="itinerary-photos-subtitle">Photos from your last trip plan</p>
+        </div>
+      </div>
+      <div id="itinerary-photos-grid" class="itinerary-photos-days"></div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
